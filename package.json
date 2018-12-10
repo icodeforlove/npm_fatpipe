@@ -32,7 +32,7 @@
   },
   "bin": {
     "fatpipe": "./index.js",
-    "fp": "./index.js",
+    "fp": "./index.js"
   },
   "engineStrict": true,
   "engines": {
