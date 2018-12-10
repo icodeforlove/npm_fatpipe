@@ -109,6 +109,8 @@ function downloadRange ({part, index, size}) {
 (async () => {
 	await started.promise;
 
+	let lastRefresh = new Date();
+
 	if (!argv.silent) {
 		process.stderr.write('\n\n\n\n\n');
 	}
@@ -124,7 +126,7 @@ function downloadRange ({part, index, size}) {
 			stdOutRangePart++;
 		}
 
-		if (!argv.silent) {
+		if (!argv.silent && new Date() - lastRefresh > 250) {
 			process.stderr.clearLine();
 			process.stderr.moveCursor(0, -4);
 			process.stderr.clearLine();
@@ -136,6 +138,7 @@ function downloadRange ({part, index, size}) {
 			process.stderr.write(c`stdout backpressure ${String(getActiveWriteCount())}.bold.white`.grey.toString() + '\n');
 			process.stderr.clearLine();
 			process.stderr.write(c`request status ${blocking ? 'blocking'.red : 'accepting'.green}`.grey.toString() + '\n');
+			lastRefresh = new Date();
 		}
 
 		if (stdOutRangePart <= lastPart) {
