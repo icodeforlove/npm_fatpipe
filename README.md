@@ -16,8 +16,10 @@ Options:
   --version      Show version number                       [boolean]
   --config       conforms to fetch protocol          [default: "{}"]
   --url          url of the request                       [required]
+  --silent       hide progress output               [default: false]
   --concurrency  max concurrency                       [default: 10]
   --chunk        size of the request chunks       [default: 5000000]
+  --agent        user agent                  [default: Chrome 73...]
 ```
 
 # installation

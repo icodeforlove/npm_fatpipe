@@ -7,21 +7,27 @@ const atmpt = require('atmpt');
 const c = require('template-colors');
 const prettyBytes = require('pretty-bytes');
 const extend = require('deep-extend');
+const prettyMs = require('pretty-ms');
+const bitrate = require('bitrate');
 
 const argv = require('yargs')
 	.describe('config', 'conforms to fetch protocol')
 	.describe('url', 'url of the request')
 	.describe('concurrency', 'max concurrency')
 	.describe('chunk', 'size of the request chunks')
+	.describe('silent', 'hide progress output')
+	.describe('agent', 'user agent')
 	.default('config', '{}')
+	.default('silent', false)
 	.default('chunk', 1000 * 1000 * 5)
 	.default('concurrency', 10)
+	.default('agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3631.0 Safari/537.36')
 	.demandOption([
 		'url'
 	])
 	.argv;
 
-const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3631.0 Safari/537.36';
+const userAgent = argv.agent;
 let started = Promise.pending();
 let downloadedRanges = [];
 let lastPart = 0;
@@ -31,6 +37,7 @@ let stdOutRangePart = 0;
 let downloadedBytes = 0;
 let stdOutWriteLog = [];
 let blocking = false;
+let completed = Promise.pending();
 
 argv.config = JSON.parse(argv.config);
 
@@ -51,10 +58,10 @@ function getActiveWriteCount () {
 	return stdOutWriteLog.filter(promise => !promise.isResolved()).length;
 }
 
-
-
 function log (message) {
-	console.error(String(message));
+	if (!argv.silent) {
+		console.error(String(message));
+	}
 }
 
 async function getRequestInformation () {
@@ -102,7 +109,9 @@ function downloadRange ({part, index, size}) {
 (async () => {
 	await started.promise;
 
-	process.stderr.write('\n\n\n\n\n');
+	if (!argv.silent) {
+		process.stderr.write('\n\n\n\n\n');
+	}
 
 	while (stdOutRangePart <= lastPart) {
 		let range = downloadedRanges.find(range => range.part === stdOutRangePart);
@@ -115,20 +124,24 @@ function downloadRange ({part, index, size}) {
 			stdOutRangePart++;
 		}
 
-   		process.stderr.clearLine();
-    	process.stderr.moveCursor(0, -4);
-		process.stderr.clearLine();
-    	process.stderr.cursorTo(0);
-    	process.stderr.write(c`${String(stdInConcurrency)}.bold.white connections, ${prettyBytes(downloadedBytes || 0)}.bold.white downloaded`.grey.toString() + '\n');
-		process.stderr.clearLine();
-    	process.stderr.write(c`current chunk spread ${String(stdInRangePart - stdOutRangePart)}.bold.white`.grey.toString() + '\n');
-		process.stderr.clearLine();
-    	process.stderr.write(c`stdout backpressure ${String(getActiveWriteCount())}.bold.white`.grey.toString() + '\n');
-    	process.stderr.clearLine();
-    	process.stderr.write(c`request status ${blocking ? 'blocking'.red : 'accepting'.green}`.grey.toString() + '\n');
+		if (!argv.silent) {
+			process.stderr.clearLine();
+			process.stderr.moveCursor(0, -4);
+			process.stderr.clearLine();
+			process.stderr.cursorTo(0);
+			process.stderr.write(c`${String(stdInConcurrency)}.bold.white connections, ${prettyBytes(downloadedBytes || 0)}.bold.white downloaded`.grey.toString() + '\n');
+			process.stderr.clearLine();
+			process.stderr.write(c`current chunk spread ${String(stdInRangePart - stdOutRangePart)}.bold.white`.grey.toString() + '\n');
+			process.stderr.clearLine();
+			process.stderr.write(c`stdout backpressure ${String(getActiveWriteCount())}.bold.white`.grey.toString() + '\n');
+			process.stderr.clearLine();
+			process.stderr.write(c`request status ${blocking ? 'blocking'.red : 'accepting'.green}`.grey.toString() + '\n');
+		}
 
 		if (stdOutRangePart <= lastPart) {
 			await Promise.delay(20);
+		} else {
+			completed.resolve();
 		}
 	}
 })().catch(log);
@@ -178,6 +191,7 @@ function downloadRange ({part, index, size}) {
 
 	lastPart = ranges.length - 1;
 
+	let startTime = new Date();
 	let concurrent = [];
 
 	while (ranges.length) {
@@ -197,7 +211,8 @@ function downloadRange ({part, index, size}) {
 		}
 	}
 
-	log(c`download complete`.green.bold);
+	await completed.promise;
 
-
+	let duration = new Date() - startTime;
+	log(c`\ndownload completed in ${prettyMs(duration)}.bold.white, at ${bitrate(info.bytes, duration/1000, 'mbps').toFixed(2)}.bold.white mb/s`.green.bold);
 })().catch(log);
