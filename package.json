@@ -1,11 +1,8 @@
 {
   "name": "fatpipe",
-  "version": "0.0.13",
-  "description": "",
+  "version": "0.0.14",
+  "description": "A command-line download accelerator with stream/pipe support.",
   "main": "index.js",
-  "scripts": {
-    "test": "A command-line download accelerator with stream/pipe support."
-  },
   "author": {
     "name": "Chad Scira",
     "email": "chadvscira@gmail.com"
